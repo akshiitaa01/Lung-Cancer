@@ -1,0 +1,101 @@
+---
+title: "MVA_Assignent2"
+author: "Akshita"
+date: "2024-02-16"
+output: html_document
+---
+
+```{r setup, include=TRUE, eval=TRUE}
+library(readr)
+library(ggplot2)
+cancer <- read_csv("C:/Users/HP/Desktop/USA/Spring'24/Multivariate/Datasets/survey lung cancer_edited.csv")
+str(cancer)
+```
+
+1. str provides the information of our dataframe 'cancer'. We can see all the columns and their respective values. Evidently, our dataset mainly contains categorical data.
+
+```{r}
+#boxplot
+boxplot(cancer[,3:9])
+```
+
+2. For boxplot, we are taking columns 3 to 9 from our dataset which are all independent variables consisting of categorical values. In this visualization, we can't really see any distribution of values since there are just 2 values (1 & 2). Box plot are generally used for continuous data and gives the distribution in terms of quartiles, mean, median etc. Thus, it does not seem to be very useful in this case.
+
+```{r}
+#starplot
+stars(cancer,labels = cancer$LUNG_CANCER)
+```
+
+3. Each axis of a star plot represents a different independent variable of the data. The position of each point or line along an axis indicates the value of the corresponding variable. However, star plot is also useful for numerical data rather than categorical data.
+
+```{r}
+#contigency table
+contigency_table <- table(cancer$SMOKING, cancer$LUNG_CANCER)
+print(contigency_table)
+```
+
+4. Contigency table summarizes the frequency of observations falling into each category. Useful for exploring the relationship between categorical values. Here, the table is between smoking (rows) and lung cancer (columns). We can see that 20 people, despite being non-smokers have lung cancer which means we can explore if there are other reasons that affect the presence of lung cancer in a person. Similarly, we can find relationship between other variables. 
+
+```{r}
+#bar plot for the dependent variable
+barplot(table(cancer$LUNG_CANCER), main = "Bar Plot of Dependent Variable")
+```
+
+5. How many people have lung cancer and how many don't?
+Bar plot for dependent variable (lung_cancer) gives the count of the variable. We can infer from the plot that there are about 50 people who are lung cancer free and the remaining people, about 250 have lung cancer.
+
+```{r}
+#Compute correlation matrix
+cor_matrix <- cor(cancer[, 3:9])
+#Create a heatmap of the correlation matrix
+heatmap(cor_matrix, main = "Heatmap of Correlation Matrix")
+```
+
+6. How are all the independent variables related to each other?
+Heatmap is useful when we want to show relationship between multiple variables. First we calculate correlation matrix and then display it as a heatmap. Each variable shows the relationship itself and all other variables. We've computed heatmap for all the independent variables here. The light colour shows low correlation and darker colour shows higher correlation.  Patterns may include clusters of similar colors, gradients, or changes in color intensity. These patterns may indicate relationships, trends, or clusters in the data. For eg, we can say that 'coughing' and 'shortness of breath' are closely related since they lie on a darker scale.
+
+```{r}
+#ggplot
+ggplot(cancer, aes(x=AGE, y=LUNG_CANCER)) + geom_point(aes(color=CHEST_PAIN))
+ggplot(cancer, aes(x=AGE, y=LUNG_CANCER)) + geom_point(aes(color=SMOKING))
+ggplot(cancer, aes(x=AGE, y=LUNG_CANCER)) + geom_point(aes(color=WHEEZING))
+```
+
+7. The plot shows multivariate visualization between 3 variables that is Age and lung cancer as x & y axis respectively and the points as different independent variables. We can see how all of these variables are correlated. For eg, in first plot we can see that most people experience chest pain. Majority of the people experiencing chest pain are in the age of 45-80 and they also suffer from lung cancer. There are a few people in that age range who don't experience chest pain but still have lung cancer.
+
+```{r}
+#histogram
+ggplot(cancer, aes(AGE))+geom_histogram()
+ggplot(cancer, aes(AGE))+geom_histogram(aes(fill = after_stat(count)))
+```
+
+8. What is the distribution of AGE across the dataset?
+The histogram here represents the count of people in each age group. We can see that highest number of people are of the age around 55-58.
+
+```{r}
+#regression
+ggplot(cancer, aes(x=SMOKING, y=COUGHING)) + geom_point() + geom_smooth(method=lm)
+```
+
+9. We can't deduce anything for the points as there are just 2 values but looking at the regression line between coughing and smoking, it seems to be a negative correlation.
+
+```{r}
+#density plot
+ggplot(cancer, aes(x=LUNG_CANCER)) + geom_density()
+```
+
+10. Since density plot are mainly used for continuous values, we can not infer much from this graph apart from which value has more count.
+
+```{r}
+# violin plot 
+ggplot(cancer, aes(x=GENDER, y=AGE)) + geom_violin()
+```
+
+11. Violin plot is good to show distributions for continuous variables between different groups or categories. Here, we can see that both Male & Female of more spread around the age of 60 implicating most of our dataset contains people of the age around 60.
+
+```{r}
+#hexbin
+ggplot(cancer, aes(x=ALCOHOL_CONSUMING, y=AGE)) + geom_hex()
+```
+
+12. Hexbin is also generally preferred for continuous values because hexbin plots rely on aggregating data points into hexagonal bins based on their continuous coordinates.We can see the distribution of Alcohol consumption in regards to the age. 
