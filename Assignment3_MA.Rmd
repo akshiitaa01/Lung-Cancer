@@ -1,0 +1,202 @@
+---
+title: "MA_Assignment3"
+author: "Akshita"
+date: "2024-02-20"
+output: html_document
+---
+
+```{r}
+library(readr)
+fish <- read.csv("C:/Users/HP/Desktop/USA/Spring'24/Multivariate/Datasets/Fish_dataset.csv")
+str(fish)
+x <- dist(scale(fish[, c("Weight", "Length1", "Length2", "Length3", "Height", "Width")],
+                center = FALSE))
+as.dist(round(as.matrix(x), 2)[1:12, 1:12])
+x <- fish[, c("Weight", "Length1", "Length2", "Length3", "Height", "Width")]
+x
+```
+We are first scaling the data so that it does not dominate the distance calculations then we are finding euclidean distance to see the similarity/dissimilarity between the variables. It is also useful for tasks such as clustering, classification, and similarity analysis.
+```{r}
+col_m <- colMeans(x)
+col_m
+co_var <- cov(x)
+co_var
+```
+Here we are finding means of each column in our fish dataset and also the covariance matrix, which represents the pairwise covariances between the columns of the dataset. 
+```{r}
+qqnorm(fish[,"Weight"], main = "Weight")
+qqline(fish[,"Weight"])
+qqnorm(fish[,"Length1"], main = "Length1")
+qqline(fish[,"Length1"])
+qqnorm(fish[,"Length2"], main = "Length2")
+qqline(fish[,"Length2"])
+qqnorm(fish[,"Length3"], main = "Length3")
+qqline(fish[,"Length3"])
+qqnorm(fish[,"Height"], main = "Heigth")
+qqline(fish[,"Height"])
+qqnorm(fish[,"Width"], main = "Width")
+qqline(fish[,"Width"])
+```
+This helps us compare the distribution for each independent column in our dataset.
+We can see that the Weight column is making an S shape so we can say that is it skewd which means points are not normally distributed. Similarly, for Height, it looks a little skewd.
+Length1, Length2, Length3 and Width seem to have most points closely follow the diagonal line which means they are normally distributed. 
+```{r}
+#T-test
+#with(data=fish,t.test(Weight,Height,var.equal=TRUE))
+with(data=fish,t.test(Weight[Species=="Bream"],Weight[Species=="Roach"],var.equal=TRUE))
+with(data=fish,t.test(Length1[Species=="Bream"],Length1[Species=="Roach"],var.equal=TRUE))
+with(data=fish,t.test(Length2[Species=="Bream"],Length2[Species=="Roach"],var.equal=TRUE))
+with(data=fish,t.test(Length3[Species=="Bream"],Length3[Species=="Roach"],var.equal=TRUE))
+with(data=fish,t.test(Height[Species=="Bream"],Height[Species=="Roach"],var.equal=TRUE))
+with(data=fish,t.test(Width[Species=="Bream"],Width[Species=="Roach"],var.equal=TRUE))
+```
+We are doing two sample t-test here to compare independent groups or populations. For eg, comparing means, hypothesis testing, EDA etc. Here we are comparing each column against the 2 unique values of Species column to see if they differ from each other in any way. We can perform this for all the species. 
+
+The p-value is extremely small, indicating strong evidence against the null hypothesis thus, we reject the null hypothesis and conclude that there is a significant difference in the mean weights of Bream and Roach fish.
+```{r}
+#hotelling
+library(Hotelling)
+t2testfish <- hotelling.test(Weight + Length1 + Length2 + Length3 + Height + Width ~ Species, data=fish)
+cat("T2 statistic =",t2testfish$stat[[1]],"\n")
+print(t2testfish)
+```
+Hotelling T2 test is a multivariate extension of two sample t-test. Here, we are comparing the multivariate means of the variables "Weight", "Length1", "Length2", "Length3", "Height", and "Width" between different species of fish.
+The p-value is 0, which means it indicates strong evidence against the null hypothesis.
+The large test statistic indicates a substantial separation between the groups in the multivariate space.
+```{r}
+# F-test for Total length (not recommended)
+attach(fish)
+var.test(Width[Species=="Bream"],Width[Species=="Roach"])
+```
+We are perfroming F-test here. The p-value of 0.9477 is greater than the significance level, i.e 0.05 indicating weak evidence against the null hypothesis.Therefore, we fail to reject the null hypothesis. This suggests that there is no significant difference in the variances of the "Width" variable between the Bream and Roach species.
+```{r}
+print(unique(fish$Species))
+matstand <- scale(fish[,2:7])
+matstand
+matbream <- matstand[Species == "Bream",]
+matbream
+matroach <- matstand[Species == "Roach",]
+matroach
+matwhitefish <- matstand[Species == "Whitefish",]
+matwhitefish
+matparkki <- matstand[Species == "Parkki",]
+matparkki
+matperch <- matstand[Species == "Perch",]
+matperch
+matpike <- matstand[Species == "Pike",]
+matpike
+matsmelt <- matstand[Species == "Smelt",]
+matsmelt
+```
+We are creating subsets of the standardized data (matstand) for each species of fish.
+Each subset contains only the rows corresponding to a specific species, obtained using conditional indexing based on the Species column.
+```{r}
+vecmedianbream <- apply(matbream, 2, median)
+vecmedianbream
+vecmedianroach <- apply(matroach, 2, median)
+vecmedianroach
+vecmedianwhitefish <- apply(matwhitefish, 2, median)
+vecmedianwhitefish
+vecmedianparkki <- apply(matparkki, 2, median)
+vecmedianparkki
+vecmedianperch <- apply(matperch, 2, median)
+vecmedianperch
+vecmedianpike <- apply(matpike, 2, median)
+vecmedianpike
+vecmediansmelt <- apply(matsmelt, 2, median)
+vecmediansmelt
+```
+Now we are calculating the median values for each variable (column) in the standardized data matrices for each species of fish.
+```{r}
+matabsdevbream <- abs(matbream - matrix(rep(vecmedianbream,nrow(matbream)),nrow=nrow(matbream), byrow=TRUE))
+matabsdevroach <- abs(matroach - matrix(rep(vecmedianroach,nrow(matroach)),nrow=nrow(matroach), byrow=TRUE))
+matabsdevwhitefish <- abs(matwhitefish - matrix(rep(vecmedianwhitefish,nrow(matwhitefish)),nrow=nrow(matwhitefish), byrow=TRUE))
+matabsdevparkki <- abs(matparkki - matrix(rep(vecmedianparkki,nrow(matparkki)),nrow=nrow(matparkki), byrow=TRUE))
+matabsdevperch <- abs(matperch - matrix(rep(vecmedianperch,nrow(matperch)),nrow=nrow(matperch), byrow=TRUE))
+matabsdevpike <- abs(matpike - matrix(rep(vecmedianpike,nrow(matpike)),nrow=nrow(matpike), byrow=TRUE))
+matabsdevsmelt <- abs(matsmelt - matrix(rep(vecmediansmelt,nrow(matsmelt)),nrow=nrow(matsmelt), byrow=TRUE))
+```
+Here we are calculating the absolute deviations of the standardized data matrices for each species of fish from their respective median vectors.
+```{r}
+matabsdev.all <- rbind(matabsdevbream, matabsdevroach, matabsdevwhitefish,matabsdevparkki,matabsdevperch, matabsdevpike,matabsdevsmelt)
+matabsdev.all <- data.frame(Species, matabsdev.all)
+```
+Now we are combining the matrices of absolute deviations (matabsdevbream, matabsdevroach, etc.) for each species of fish into a single data frame and then adding a column for the species labels.
+```{r}
+unique_values <- unique(fish$Species)
+results <- list()
+
+for (col_name in names(matabsdev.all)) {
+  if (col_name != "Species") {
+    for (value in unique_values) {
+    
+      # Split the data into two groups based on the unique value
+      group1 <- matabsdev.all[matabsdev.all$Species == value, col_name]
+      group2 <- matabsdev.all[matabsdev.all$Species != value, col_name]
+      
+      # Perform the t-test
+      t_result <- t.test(group1, group2)
+      
+      # Store the results
+      result_entry <- list(
+        Column = col_name,
+        Group = value,
+        TStatistic = t_result$statistic,
+        PValue = t_result$p.value
+      )
+      results <- c(results, list(result_entry))
+    }
+  }
+}
+
+# Convert results to a data frame
+results_df <- do.call(rbind, results)
+
+# Print or further analyze the results
+print(results_df)
+```
+Here we are performing a two-sample t-test for each column of the matabsdev.all data frame, comparing the absolute deviation values between each pair of species.
+
+The output provides statistical evidence of differences in the measurements between different species of fish, helping to identify which measurements contribute significantly to distinguishing between species.
+
+For eg, "Weight", comparing "Bream" and "Smelt" yields a t-statistic of -14.55027 with an extremely small p-value of 4.973162e-30, indicating a significant difference in weight between these two species.
+```{r}
+matstand
+matstand.all <- data.frame(Species, matstand)
+colnames(matstand.all) <- colnames(fish[1:7])
+
+t2testfish <- hotelling.test(Weight + Length1 + Length2 + Length3 + Height + Width ~ Species, data=matstand.all)
+cat("T2 statistic =",t2testfish$stat[[1]],"\n")
+print(t2testfish)
+```
+Here, the hotelling function is applied to the standardized data (matstand.all) with a formula specifying all the measurements. The high test statistic of 819.73 and a very low p-value 0 suggests that there are significant differences between the mean vectors of morphological measurements across different species of fish. 
+```{r}
+matabsdev.all
+
+d.all <- data.frame(Species,sqrt(rowSums(matabsdev.all[,-1]^2)))
+d.all
+colnames(d.all)[2] <- "dij"
+d.all
+head(d.all)
+with(d.all, t.test(dij[Species=="Bream"], dij[Species=="Roach"],var.equal=TRUE, alternative="less"))
+sprintf("d-values for Bream: Mean = %2.3f, Variance = %2.3f",mean(d.all$dij[Species=="Bream"]),var(d.all$dij[Species=="Bream"]))
+sprintf("d-values for Roach: Mean = %2.3f, Variance = %2.3f",mean(d.all$dij[Species=="Roach"]),var(d.all$dij[Species=="Roach"]))
+```
+Above code calculates Euclidean distances based on the absolute deviations (matabsdev.all) of standardized  measurements. The p-value (0.9523) is greater than the significance level thus suggesting weak evidence against the null hypothesis. SImply, we don't have enough evidence to conclude that there's a significant difference in the average distance between these two species based on the given data.
+```{r}
+library(car)
+#leveneTest() produces a two-sided test
+leveneTest(Weight ~ Species, data=fish)
+leveneTest(Length1 ~ Species, data=fish)
+leveneTest(Length2 ~ Species, data=fish)
+leveneTest(Length3 ~ Species, data=fish)
+leveneTest(Height ~ Species, data=fish)
+leveneTest(Width ~ Species, data=fish)
+```
+This code checks if the variability (spread) of measurements like weight, length, height, and width is similar or different across different types of fish species. Here, the test statistic is the F value, and a larger F value suggests larger differences in variances between groups.
+
+The significance codes (***, **, *) show the level of significance at which we can reject the null hypothesis. In this case, *** indicates a very high level of significance.
+
+In each test, the p-value is extremely small which indicates strong evidence against the null hypothesis.
+
+Therefore, we reject the null hypothesis and conclude that there are significant differences in the variance of each measurement across the different types of species.
