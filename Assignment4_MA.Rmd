@@ -1,0 +1,223 @@
+---
+title: "MVA_Assignment4"
+author: "Akshita"
+date: "2024-02-29"
+output: html_document
+---
+
+1. Decide how many Principal Components (PCs) you want to keep and why.
+```{r setup}
+library(readr)
+fish <- read_csv("C:/Users/HP/Desktop/USA/Spring'24/Multivariate/Datasets/Fish_dataset.csv")
+str(fish)
+attach(fish)
+
+#Get the Correlations between the measurements
+cor(fish[-1])
+
+fish_pca <- prcomp(fish[,-1],scale=TRUE)
+fish_pca
+
+summary(fish_pca)
+```
+From results, we can deduce that PC1 explains 87.81% of the total variance, PC2 explains 8.53%, and so on. The first two or three principal components together explain around 85-98% of the variance, i majority of the variability is captured in the original dataset. By retaining these principal components, we can summarize the essential patterns in the data while reducing its dimensionality.
+
+2. Explain the variate representation each PCs.
+```{r}
+loadings <- fish_pca$rotation
+barplot(loadings[, 1], main = "Loadings for PC1", xlab = "Variables", ylab = "Loadings")
+barplot(loadings[, 2], main = "Loadings for PC2", xlab = "Variables", ylab = "Loadings")
+barplot(loadings[, 3], main = "Loadings for PC3", xlab = "Variables", ylab = "Loadings")
+```
+For PC1, all the variables have high positive loadings which means they contribute most to the overall variation in the dataset captured by PC1. These variables are the primary drivers of the patterns observed in the data along PC1.
+
+For PC2, Length1, Length2 have high negative loadings including Height with a high positive loading.
+
+For PC3, Height and Width have relatively high negative and positive loadings, respectively which means they are the primary drivers of the patterns observed in the data along PC3.
+```{r}
+(eigen_fish <- fish_pca$sdev^2)
+names(eigen_fish) <- paste("PC",1:6,sep="")
+eigen_fish
+
+sumlambdas <- sum(eigen_fish)
+sumlambdas
+
+propvar <- eigen_fish/sumlambdas
+propvar
+
+cumvar_fish <- cumsum(propvar)
+cumvar_fish
+
+matlambdas <- rbind(eigen_fish,propvar,cumvar_fish)
+rownames(matlambdas) <- c("Eigenvalues","Prop. variance","Cum. prop. variance")
+round(matlambdas,4)
+summary(fish_pca)
+fish_pca$rotation
+print(fish_pca)
+
+## Sample scores stored in fish_pca$x
+fish_pca$x
+
+# Identifying the scores by their survival status
+fishtype_pca <- cbind(data.frame(Species),fish_pca$x)
+fishtype_pca
+
+tabmeansPC <- aggregate(fishtype_pca[,2:7],by=list(Species=fish$Species),mean)
+tabmeansPC
+tabmeansPC <- tabmeansPC[rev(order(tabmeansPC$Species)),]
+tabmeansPC
+
+tabfmeans <- t(tabmeansPC[,-1])
+tabfmeans
+colnames(tabfmeans) <- t(as.vector(tabmeansPC[1]$Species))
+tabfmeans
+
+tabsdsPC <- aggregate(fishtype_pca[,2:7],by=list(Species=fish$Species),sd)
+tabfsds <- t(tabsdsPC[,-1])
+colnames(tabfsds) <- t(as.vector(tabsdsPC[1]$Species))
+tabfsds
+
+# univariate
+# Define the principal components and species of interest
+pcs_of_interest <- c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6")
+species_of_interest <- c("Bream", "Roach", "Whitefish", "Parkki", "Perch", "Pike")
+
+# Create an empty list to store the results
+t_test_results <- list()
+
+# Loop through each principal component
+for (pc in pcs_of_interest) {
+  # Perform the Welch's two-sample t-test for the current principal component
+  t_test_result <- list()
+  for (i in 1:(length(species_of_interest) - 1)) {
+    for (j in (i+1):length(species_of_interest)) {
+      species1 <- species_of_interest[i]
+      species2 <- species_of_interest[j]
+      subset_data1 <- subset(fishtype_pca, Species == species1)
+      subset_data2 <- subset(fishtype_pca, Species == species2)
+      t_test_result[[paste(species1, species2, sep = "_")]] <- t.test(subset_data1[[pc]], subset_data2[[pc]], var.equal = FALSE)
+    }
+  }
+  
+  # Store the t-test results in the list
+  t_test_results[[pc]] <- t_test_result
+}
+
+# Access the results for a specific principal component, e.g., PC1
+t_test_results[["PC1"]]
+t_test_results[["PC2"]]
+t_test_results[["PC3"]]
+t_test_results[["PC4"]]
+t_test_results[["PC5"]]
+t_test_results[["PC6"]]
+
+# Levene's tests 
+library(car)
+# Perform Levene's test for homogeneity of variances for PC1
+LTPC1 <- leveneTest(PC1 ~ Species, data = fishtype_pca, center = median)
+LTPC1
+LTPC2 <- leveneTest(PC2 ~ Species, data = fishtype_pca, center = median)
+LTPC2
+LTPC3 <- leveneTest(PC3 ~ Species, data = fishtype_pca, center = median)
+LTPC3
+LTPC4 <- leveneTest(PC4 ~ Species, data = fishtype_pca, center = median)
+LTPC4
+LTPC5 <- leveneTest(PC5 ~ Species, data = fishtype_pca, center = median)
+LTPC5
+LTPC6 <- leveneTest(PC6 ~ Species, data = fishtype_pca, center = median)
+LTPC6
+
+#get the original value of the data based on PCA
+center <- fish_pca$center
+scale <-fish_pca$scale
+new_fish <- as.matrix(fish[,-1])
+new_fish
+drop(scale(new_fish,center=center, scale=scale)%*%fish_pca$rotation[,1])
+predict(fish_pca)[,1]
+```
+3. Perform some visualization using PCs.
+```{r}
+fishtype_pca
+library(ggplot2)
+# Plot PC1 against PC2 for each species
+ggplot(fishtype_pca, aes(x = PC1, y = PC2, color = Species)) + geom_point() +
+labs(x = "Principal Component 1", y = "Principal Component 2", title = "PC1 vs PC2") +
+theme_minimal()
+
+# Plot PC1 against PC3 for each species
+ggplot(fishtype_pca, aes(x = PC1, y = PC3, color = Species)) + geom_point() +
+labs(x = "Principal Component 1", y = "Principal Component 3", title = "PC1 vs PC3") +
+theme_minimal()
+
+# Plot PC2 against PC3 for each species
+ggplot(fishtype_pca, aes(x = PC2, y = PC3, color = Species)) + geom_point() +
+labs(x = "Principal Component 2", y = "Principal Component 3", title = "PC2 vs PC3") +
+theme_minimal()
+
+plot(eigen_fish, xlab = "Component number", ylab = "Component variance", type = "l", main = "Scree diagram")
+
+plot(log(eigen_fish), xlab = "Component number",ylab = "log(Component variance)", type="l",main = "Log(eigenvalue) diagram")
+
+print(summary(fish_pca))
+diag(cov(fish_pca$x))
+xlim <- range(fish_pca$x[,1])
+fish_pca$x[,1]
+fish_pca$x
+plot(fish_pca$x,xlim=xlim,ylim=xlim)
+
+fish_pca$rotation[,1]
+fish_pca$rotation
+plot(fish[,-1])
+fish_pca$x
+plot(fish_pca)
+
+library(factoextra)
+library(FactoMineR)
+library(psych)
+library(corrplot)
+library(devtools)
+
+#correlation
+pairs.panels(fish[,-1],
+             gap = 0,
+             bg = c("red", "blue")[fish$Species],
+             pch=21)
+
+pairs.panels(fish_pca$x,
+             gap=0,
+             bg = c("red", "blue")[fish$Species],
+             pch=21)
+
+ggplot(fishtype_pca, aes(x = PC1, fill = Species)) +
+  geom_density(alpha = 0.5) +
+  labs(x = "Principal Component 1", y = "Density", title = "Density Plot of PC1 by Species") +
+  theme_minimal()
+
+ggplot(fishtype_pca, aes(x = PC2, fill = Species)) +
+  geom_density(alpha = 0.5) +
+  labs(x = "Principal Component 2", y = "Density", title = "Density Plot of PC2 by Species") +
+  theme_minimal()
+
+ggplot(fishtype_pca, aes(x = PC3, fill = Species)) +
+  geom_density(alpha = 0.5) +
+  labs(x = "Principal Component 3", y = "Density", title = "Density Plot of PC3 by Species") +
+  theme_minimal()
+
+biplot(prcomp(fishtype_pca[, -1]), scale = 0)
+
+ggplot(fishtype_pca, aes(x = Species, y = PC1, fill = Species)) +
+  geom_violin() +
+  labs(x = "Species", y = "Principal Component 1", title = "Violin Plot of PC1 by Species") +
+  theme_minimal()
+
+ggplot(fishtype_pca, aes(x = Species, y = PC2, fill = Species)) +
+  geom_violin() +
+  labs(x = "Species", y = "Principal Component 2", title = "Violin Plot of PC2 by Species") +
+  theme_minimal()
+
+ggplot(fishtype_pca, aes(x = Species, y = PC3, fill = Species)) +
+  geom_violin() +
+  labs(x = "Species", y = "Principal Component 3", title = "Violin Plot of PC3 by Species") +
+  theme_minimal()
+```
+
