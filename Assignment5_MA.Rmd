@@ -1,0 +1,195 @@
+---
+title: "Assignment5_MVA"
+author: "Akshita"
+date: "2024-03-07"
+output: html_document
+---
+
+```{r setup}
+
+library(cluster)
+library(readr)
+library(factoextra)
+library(magrittr)
+library(NbClust)
+
+# With made up data. 
+fish_data <- read.csv("C:/Users/HP/Desktop/USA/Spring'24/Multivariate/Datasets/Fish_dataset.csv",
+                      header=TRUE, fill = TRUE)
+str(fish_data)
+matstd.can <- scale(fish_data[,-1])
+
+#The dataset is of 160 observations that's why we'll create a sample data of 30 rows. 
+sample_data <- fish_data[sample(nrow(fish_data), 30), ]
+matstd.data <- scale(sample_data[,-1])
+
+# Creating a (Euclidean) distance matrix of the standardized data                     
+dist_matrix <- dist(matstd.data, method = "euclidean")
+colnames(dist_matrix) <- rownames(dist_matrix)
+print(dist_matrix)
+
+# Invoking hclust command (cluster analysis by single linkage method)      
+clus_fish.1 <- hclust(dist_matrix, method = "single")
+
+#dendogram
+plot(as.dendrogram(clus_fish.1),ylab="Distance between Fish species",ylim=c(0,2.5),main="Dendrogram of seven fish species")
+
+plot(as.dendrogram(clus_fish.1), xlab= "Distance between Fish species", xlim=c(6,0),
+     horiz = TRUE,main="Dendrogram of seven fish species")
+
+(agn.data <- agnes(sample_data, metric="euclidean", stand=TRUE, method = "single"))
+
+plot(as.dendrogram(agn.data), xlab= "Distance between Species",xlim=c(8,0),
+     horiz = TRUE,main="Dendrogram of seven species")
+```
+
+From the dendogram it seems like the optimum number of clusters could be 3 since majority of small clusters lie under these 3 big clusters.
+
+K means clustering:
+```{r}
+# K-Means Clustering
+matstd.can <- scale(fish_data[,-1])
+# K-means, k=2, 3, 4, 5, 6
+# Centers (k's) are numbers thus, 10 random sets are chosen
+
+
+# Computing the percentage of variation accounted for. Two clusters
+(kmeans2.fish <- kmeans(matstd.can,2,nstart = 10))
+perc.var.2 <- round(100*(1 - kmeans2.fish$betweenss/kmeans2.fish$totss),1)
+names(perc.var.2) <- "Perc. 2 clus"
+perc.var.2
+
+# Computing the percentage of variation accounted for. Three clusters
+(kmeans3.fish <- kmeans(matstd.can,3,nstart = 10))
+perc.var.3 <- round(100*(1 - kmeans3.fish$betweenss/kmeans3.fish$totss),1)
+names(perc.var.3) <- "Perc. 3 clus"
+perc.var.3
+
+# Computing the percentage of variation accounted for. Four clusters
+(kmeans4.fish <- kmeans(matstd.can,4,nstart = 10))
+perc.var.4 <- round(100*(1 - kmeans4.fish$betweenss/kmeans4.fish$totss),1)
+names(perc.var.4) <- "Perc. 4 clus"
+perc.var.4
+
+# Computing the percentage of variation accounted for. Five clusters
+(kmeans5.fish <- kmeans(matstd.can,5,nstart = 10))
+perc.var.5 <- round(100*(1 - kmeans5.fish$betweenss/kmeans5.fish$totss),1)
+names(perc.var.5) <- "Perc. 5 clus"
+perc.var.5
+
+
+# Computing the percentage of variation accounted for. Six clusters
+(kmeans6.fish <- kmeans(matstd.can,6,nstart = 10))
+perc.var.6 <- round(100*(1 - kmeans6.fish$betweenss/kmeans6.fish$totss),1)
+names(perc.var.6) <- "Perc. 6 clus"
+perc.var.6
+
+attributes(perc.var.6)
+Variance_List <- c(perc.var.2,perc.var.3,perc.var.4,perc.var.5,perc.var.6)
+
+Variance_List
+plot(Variance_List)
+```
+
+1. Decide the optimal number of clusters and explain why.
+
+```{r}
+#elbow method
+# Perform K-means clustering for different numbers of clusters
+wss <- numeric(length = 5)
+
+for (k in 2:6) {
+  kmeans_model <- kmeans(matstd.can, k, nstart = 10)
+  wss[k - 1] <- kmeans_model$tot.withinss
+}
+
+#elbow curve
+plot(2:6, wss, type = "b", xlab = "Number of Clusters", ylab = "Within-cluster Sum of Squares", main = "Elbow Method")
+
+#silhouette method
+
+library(cluster)
+
+sil_width <- numeric(length = 5)
+
+# Computing silhouette widths for different numbers of clusters
+for (k in 2:6) {
+  # Perform K-means clustering
+  kmeans_model <- kmeans(matstd.can, k, nstart = 10)
+  
+  if (k > 1) {  # Silhouette width using two clusters
+    silhouette_width <- silhouette(kmeans_model$cluster, dist(matstd.can))
+    sil_width[k - 1] <- mean(silhouette_width[, "sil_width"])
+  }
+}
+
+# Plot the silhouette scores
+plot(2:6, sil_width, type = "b")
+```
+Given these plots we can see that in elbow method, between cluster 4 and cluster 5, there is no significant difference hence we can say that 4 is the elbow point thus the optimum number of clusters.
+
+While in silhouette plot, Higher sil_width values indicate better-defined and well-separated clusters.Here we can see that it drops after 3 so we can infer that 3 is the optimum number of clusters
+
+2. Show the membership for each cluster
+
+```{r}
+
+optimal_num_clusters <- 4
+
+#K-means clustering with the optimal number of clusters
+kmeans_model <- kmeans(matstd.can, optimal_num_clusters, nstart = 10)
+
+cluster_membership <- kmeans_model$cluster
+
+# Print the cluster membership for each data point
+print(cluster_membership)
+
+# Scatter plot of the data with clusters colored by membership
+plot(matstd.can[, 1], matstd.can[, 2], 
+     col = kmeans_model$cluster, pch = 16, 
+     xlab = "Variable 1", ylab = "Variable 2",
+     main = "K-means Clustering")
+
+# Adding cluster centers to the plot
+points(kmeans_model$centers[, 1], kmeans_model$centers[, 2], col = 1:optimal_num_clusters, pch = 3, cex = 2)
+
+# Adding legend
+legend("topright", legend = paste("Cluster", 1:optimal_num_clusters), col = 1:optimal_num_clusters, pch = 16, cex = 1.2, title = "Clusters")
+```
+
+3. Show a visualization of the cluster and membership using the first two Principal Components.
+
+```{r}
+# Perform PCA
+pca_result <- prcomp(matstd.can, scale. = TRUE)
+
+# Extract PC scores for the first two principal components
+PC1 <- pca_result$x[, 1]
+PC2 <- pca_result$x[, 2]
+
+# Plot the data with clusters colored by membership
+plot(PC1, PC2, 
+     col = kmeans_model$cluster, pch = 16, 
+     xlab = "Principal Component 1", ylab = "Principal Component 2",
+     main = "K-means Clustering based on PC1 and PC2")
+
+# Add legend
+legend("topright", legend = paste("Cluster", 1:optimal_num_clusters), 
+       col = 1:optimal_num_clusters, pch = 16, cex = 1.2, title = "Clusters")
+
+# Saving four k-means clusters in a list
+# Initialize a list to store matrices for each cluster
+cluster_matrices <- list()
+
+# Iterate over each cluster
+for (i in 1:max(kmeans4.fish$cluster)) {
+  # Subset data for the current cluster
+  cluster_indices <- which(kmeans4.fish$cluster == i)
+  cluster_data <- matstd.can[cluster_indices, ]
+  
+  # Create a matrix for the current cluster
+  cluster_matrices[[paste0("clus", i)]] <- matrix(cluster_data, ncol = ncol(cluster_data), nrow = nrow(cluster_data))
+}
+
+print(cluster_matrices)
+```
