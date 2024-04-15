@@ -1,0 +1,121 @@
+---
+title: "Assignment8_MA"
+author: "Akshita"
+date: "2024-04-11"
+output: html_document
+---
+1. Model Development
+```{r}
+fish_data <- read.csv("C:/Users/HP/Desktop/USA/Spring'24/Multivariate/Datasets/Fish_dataset.csv")
+str(fish_data)
+model_fit <- lm(Weight ~ Length1 + Height + Width, data = fish_data)
+#show the results
+summary(model_fit)
+#Summary has three sections. Section1: How well does the model fit the data (before Coefficients). Section2: Is the hypothesis supported? (until sifnif codes). Section3: How well does data fit the model (again).
+# Useful Helper Functions
+coefficients(model_fit)
+```
+Length1: For each unit increase in the length of the fish (Length1), the weight might increase by approximately 22.605 units.
+
+Height: For each unit increase in the height of the fish (Height), the weight might increase by approximately 13.590 units.
+
+Width: For each unit increase in the width of the fish (Width), the weight might increase by approximately 44.266 units.
+
+All predictor variables have p-values less than 0.05, indicating that they are statistically significant in predicting the weight of the fish. Therefore, we can reject the null hypothesis.
+
+The multiple R-squared value of 0.8828 indicates that approximately 88.28% of the variance in the weight of the fish is explained by the predictor variables (Length1, Height, and Width) included in the model.
+
+This suggests that the model provides a good fit to the data and that the predictor variables collectively have a strong relationship with the weight of the fish.
+
+The F-statistic of 386.7 with a very low p-value indicates that the model as a whole is statistically significant. This means that at least one of the predictor variables (Length1, Height, or Width) has a non-zero coefficient in the model.
+
+
+2. Model Acceptance
+```{r}
+# Assess the acceptance of the model
+# Check R-squared and adjusted R-squared
+r_squared <- summary(model_fit)$r.squared
+adj_r_squared <- summary(model_fit)$adj.r.squared
+cat("R-squared:", r_squared, "\n")
+cat("Adjusted R-squared:", adj_r_squared, "\n")
+
+# Check the F-statistic and its p-value
+f_statistic <- summary(model_fit)$fstatistic
+f_statistic_value <- f_statistic[1]
+f_statistic_p_value <- pf(f_statistic_value, f_statistic[2], f_statistic[3], lower.tail = FALSE)
+cat("F-statistic:", f_statistic_value, "\n")
+cat("p-value:", f_statistic_p_value, "\n")
+```
+The R-squared value is 0.8828, indicating that approximately 88.28% of the variance in the weight of the fish is explained by the predictor variables (Length1, Height, and Width) included in the model.
+
+The F-statistic is 386.6645, indicating that the model as a whole is statistically significant.
+The associated p-value (1.899006e-71) is extremely small, indicating strong evidence against the null hypothesis that all coefficients in the model are zero.
+
+Based on these observations, we can infer that the linear regression model is statistically significant and provides a good fit to the data. Therefore, we can accept the model for predicting the weight of the fish based on the provided predictor variables (Length1, Height, and Width).
+
+
+3. Residual Analysis 
+```{r}
+# Select only numeric variables from fish_data
+numeric_fish_data <- fish_data[, sapply(fish_data, is.numeric)]
+# Plot pairs
+pairs(numeric_fish_data, main = "Fish Data")
+confint(model_fit,level=0.95)
+fitted(model_fit)
+residuals(model_fit)
+
+# Plot residuals vs. fitted values
+plot(model_fit, which = 1)
+
+# Plot normal Q-Q plot of residuals
+plot(model_fit, which = 2)
+```
+The points are mostly normally distributed but we can see some deviation along the line which means not all points follow the normal distribution. We can see some point far away from the line as well which means our data might contain outliers.
+
+
+4. Prediction
+```{r}
+# Make predictions
+predictions <- predict(model_fit, newdata = fish_data)
+
+# Print predictions
+print(predictions)
+```
+Each predicted weight represents the estimated weight of a fish based on its corresponding values of the predictor variables (Length1, Height, and Width) as per the fitted regression model.
+
+The model estimates a wide range of fish weights, from negative values to over 1300 units. However, negative weights are not meaningful in this context and suggest potential issues with the model, such as overfitting or outliers in the data.
+
+
+5. Model Accuracy
+```{r}
+# Calculate Mean Squared Error (MSE)
+mse <- mean(model_fit$residuals^2)
+
+# Calculate Root Mean Squared Error (RMSE)
+rmse <- sqrt(mse)
+
+# Calculate Mean Absolute Error (MAE)
+mae <- mean(abs(model_fit$residuals))
+
+# Print the accuracy metrics
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+```
+The MSE is 14900.56.This indicates that, on average, the squared difference between the observed and predicted values of the response variable (weight of the fish) is 14900.56 units squared.
+
+The model's performance appears moderate, with an RMSE of approximately 122.07 and an MAE of approximately 94.08.
+
+These values indicate that, on average, the model's predictions are off by around 122.07 units of weight when considering the RMSE and around 94.08 units of weight when considering the MAE.
+```{r}
+#Anova Table
+anova(model_fit)
+vcov(model_fit)
+cov2cor(vcov(model_fit))
+temp <- influence.measures(model_fit)
+temp
+plot(model_fit)
+
+anova_result <- anova(model_fit)
+print(anova_result)
+```
