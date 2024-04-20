@@ -1,0 +1,142 @@
+---
+title: "Assignment9_MA"
+author: "Akshita"
+date: "2024-04-18"
+output: html_document
+---
+1. Model Development
+```{r}
+library(ggplot2)
+library(cowplot)
+library(pROC)
+
+fish_data <- read.csv("C:/Users/HP/Desktop/USA/Spring'24/Multivariate/Datasets/Fish_dataset.csv")
+str(fish_data)
+
+# Subset the fish data to create a binary classification task
+binary_fish_data <- subset(fish_data, Species == "Bream" | Species != "Bream")
+
+# Convert the target variable to a binary outcome (1 for Bream, 0 for non-Bream)
+binary_fish_data$IsBream <- ifelse(binary_fish_data$Species == "Bream", 1, 0)
+
+# Fit logistic regression model
+binary_fish_model <- glm(IsBream ~ ., data = binary_fish_data, family = "binomial")
+
+# Summary of the model
+summary(binary_fish_model)
+
+```
+Overall, the output suggests that none of the predictor variables are statistically significant in predicting whether a fish is a Bream or not, as indicated by the high p-values. Additionally, the extremely small residual deviance indicates an excellent fit of the model to the data. However, the lack of significant predictors may raise concerns about the model's usefulness in accurately predicting the outcome. 
+
+
+2. Model Acceptance & 3. Residual Analysis
+```{r}
+# Goodness of Fit
+# Compare null deviance and residual deviance
+null_deviance <- summary(binary_fish_model)$null.deviance
+residual_deviance <- summary(binary_fish_model)$deviance
+deviance_reduction <- null_deviance - residual_deviance
+print(paste("Null Deviance:", null_deviance))
+print(paste("Residual Deviance:", residual_deviance))
+print(paste("Deviance Reduction:", deviance_reduction))
+
+# AIC
+AIC_value <- AIC(binary_fish_model)
+print(AIC_value)
+
+# Assumptions Checking (Diagnostic Plots)
+par(mfrow = c(2, 2))  # Set up a 2x2 plot layout
+plot(binary_fish_model)
+```
+Deviance Reduction:
+The deviance reduction from the null model to the residual model is substantial, indicating that the model explains a significant portion of the variability in the data.
+
+AIC:
+AIC value of 26 suggests a good balance between model fit and complexity. Lower AIC values are preferred, indicating better model performance.
+
+Deviance:
+Residual deviance close to zero indicates that the model fits the data well, with little unexplained variability.
+
+4. Prediction 
+```{r}
+# Predict probabilities for each observation
+predicted_probabilities <- predict(binary_fish_model, type = "response", newdata = binary_fish_data)
+
+# View the predicted probabilities
+head(predicted_probabilities)
+
+# Set a threshold probability (e.g., 0.5)
+threshold <- 0.5
+
+# Convert predicted probabilities to binary predictions based on the threshold
+predicted_classes <- ifelse(predicted_probabilities >= threshold, 1, 0)
+
+# Calculate accuracy
+accuracy <- mean(predicted_classes == binary_fish_data$IsBream)
+print(paste("Accuracy:", accuracy))
+
+# Create a data frame with actual and predicted values
+prediction_df <- data.frame(
+  Actual = binary_fish_data$IsBream,
+  Predicted_Probability = predicted_probabilities)
+
+# Sort the data frame by predicted probabilities for better visualization
+prediction_df <- prediction_df[order(prediction_df$Predicted_Probability), ]
+
+# Create a sequence of observation numbers
+observation_numbers <- seq_along(predicted_probabilities)
+
+# Plot predicted probabilities
+plot(observation_numbers, predicted_probabilities, type = "l", col = "blue",
+     xlab = "Observation", ylab = "Probability", 
+     main = "Predicted Probabilities vs. Actual Outcomes")
+
+# Add actual outcomes as points (red for Bream, green for Non-Bream)
+points(observation_numbers[binary_fish_data$IsBream == 1], 
+       rep(1, sum(binary_fish_data$IsBream == 1)), col = "red", pch = 19)
+points(observation_numbers[binary_fish_data$IsBream == 0], 
+       rep(0, sum(binary_fish_data$IsBream == 0)), col = "green", pch = 19)
+
+# Add legend
+legend("topright", legend = c("Predicted", "Actual (Bream)", "Actual (Non-Bream)"),
+       col = c("blue", "red", "green"), lty = 1, pch = c(NA, 19, 19), cex = 0.8)
+
+```
+
+
+5. Model Accuracy
+```{r}
+# Predicted probabilities from the logistic regression model
+predicted_probabilities <- predict(binary_fish_model, type = "response")
+
+# Convert predicted probabilities to binary predictions (1 for Bream, 0 for Non-Bream)
+predicted_classes <- ifelse(predicted_probabilities >= 0.5, 1, 0)
+
+# Calculate accuracy
+accuracy <- mean(predicted_classes == binary_fish_data$IsBream)
+cat("Model Accuracy:", accuracy, "\n")
+
+# Predict classes using the logistic regression model
+predicted_classes <- ifelse(predict(binary_fish_model, newdata = binary_fish_data, type = "response") > 0.5, "Bream", "Not Bream")
+
+# Create a confusion matrix
+confusion_matrix <- table(predicted_classes, as.factor(binary_fish_data$IsBream))
+
+# Print confusion matrix
+print(confusion_matrix)
+
+# Calculate ROC curve
+roc_curve <- roc(binary_fish_data$IsBream, predicted_probabilities)
+
+# Plot ROC curve
+plot(roc_curve, main = "ROC Curve for Logistic Regression Model",
+     col = "blue", lwd = 2)
+
+# Add diagonal line for reference
+abline(a = 0, b = 1, col = "red", lty = 2)
+
+# Add legend
+legend("bottomright", legend = c("ROC Curve", "Random Guessing"),
+       col = c("blue", "red"), lty = 1:2, cex = 0.8)
+
+```
