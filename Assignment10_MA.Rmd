@@ -1,0 +1,183 @@
+---
+title: "Assignment10_MA"
+author: "Akshita"
+date: "2024-04-23"
+output: html_document
+---
+
+```{r}
+library(MASS)
+library(ggplot2)
+library(memisc)
+library(ROCR)
+#library(dplyr)
+#library(klaR)
+
+fish_data <- read.csv("C:/Users/HP/Desktop/USA/Spring'24/Multivariate/Datasets/Fish_dataset.csv")
+dim(fish_data)
+str(fish_data)
+fish_independent <- as.matrix(fish_data[,c(2:7)])
+fish_raw <- cbind(fish_independent, as.numeric(as.factor(fish_data$Species))-1)
+colnames(fish_raw)[7] <- "Species"
+
+smp_size_raw <- floor(0.75 * nrow(fish_raw))
+train_ind_raw <- sample(nrow(fish_raw), size = smp_size_raw)
+train_raw.df <- as.data.frame(fish_raw[train_ind_raw, ])
+test_raw.df <- as.data.frame(fish_raw[-train_ind_raw, ])
+
+fish_raw.lda <- lda(formula = train_raw.df$Species ~ ., data = train_raw.df)
+fish_raw.lda
+
+summary(fish_raw.lda)
+print(fish_raw.lda)
+plot(fish_raw.lda)
+
+fish_raw.lda.predict <- predict(fish_raw.lda, newdata = test_raw.df)
+fish_raw.lda.predict$class
+fish_raw.lda.predict$x
+
+
+#Filter the dataset for the two classes you want to predict
+class_1 <- "Bream"  # class 1
+class_2 <- "Pike"   # class 2
+
+filtered_data <- fish_data[fish_data$Species %in% c(class_1, class_2), ]
+str(filtered_data)
+
+
+fish_independent_new <- as.matrix(filtered_data[,c(2:7)])
+fish_raw_new <- cbind(fish_independent_new, as.numeric(as.factor(filtered_data$Species))-1)
+colnames(fish_raw_new)[7] <- "Species"
+
+smp_size_raw_new <- floor(0.75 * nrow(fish_raw_new))
+train_ind_raw_new <- sample(nrow(fish_raw_new), size = smp_size_raw_new)
+train_raw.df_new <- as.data.frame(fish_raw_new[train_ind_raw_new, ])
+test_raw.df_new <- as.data.frame(fish_raw_new[-train_ind_raw_new, ])
+
+fish_raw.lda_new <- lda(formula = train_raw.df_new$Species ~ ., data = train_raw.df_new)
+fish_raw.lda_new
+
+summary(fish_raw.lda_new)
+print(fish_raw.lda_new)
+plot(fish_raw.lda_new)
+
+fish_raw.lda.predict_new <- predict(fish_raw.lda_new, newdata = test_raw.df_new)
+fish_raw.lda.predict_new$class
+fish_raw.lda.predict_new$x
+
+
+
+# Get the posteriors as a dataframe.
+fish_raw.lda.predict_new.posteriors <- as.data.frame(fish_raw.lda.predict_new$posterior)
+
+pred <- prediction(fish_raw.lda.predict_new.posteriors[,2], test_raw.df_new$Species)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.train <- performance(pred, measure = "auc")
+auc.train <- auc.train@y.values
+plot(roc.perf)
+abline(a=0, b= 1)
+text(x = .25, y = .65 ,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+
+# do a quick plot to understand how good the model is
+plot(fish_raw.lda_new, col = as.integer(train_raw.df_new$Species))
+# Sometime bell curves are better
+plot(fish_raw.lda_new, dimen = 1, type = "b")
+# THis plot shows the essense of LDA. It puts everything on a line and finds cutoffs. 
+# Partition plots
+#partimat(Species ~ Weigth + Sepal.Width + Length1 + Length2 + Length3 + Height + Width, data=train_raw.df_new, method="lda")
+
+#Trying with 3 species now
+class_3 <- "Roach"
+filtered_data_2 <- fish_data[fish_data$Species %in% c(class_1, class_2, class_3), ]
+
+r2 <- lda(formula = Species ~ ., data = filtered_data_2, CV = TRUE)
+r2
+head(r2$class)
+train <- sample(1:150, 75)
+r3 <- lda(Species ~ ., # training model
+           filtered_data_2,
+           prior = c(1,1,1)/3,
+           subset = train)
+plda = predict(object = r3, # predictions
+                newdata = filtered_data_2[-train, ])
+head(plda$class)
+head(plda$posterior, 6) # posterior prob.
+head(plda$x, 3)
+plot(r3)
+head(r2$posterior, 3)
+train <- sample(1:150, 75)
+r3 <- lda(Species ~ ., # training model
+           filtered_data_2,
+           prior = c(1,1,1)/3,
+           subset = train)
+plda = predict(object = r3, # predictions
+                newdata = filtered_data_2[-train, ])
+head(r2$posterior, 3)
+head(plda$posterior, 6) # posterior prob.
+head(plda$x, 3)
+plot(r3)
+r <- lda(Species ~ .,
+          filtered_data_2,
+          prior = c(1,1,1)/3)
+prop.lda = r$svd^2/sum(r$svd^2)
+plda <- predict(object = r,
+               newdata = filtered_data_2)
+dataset = data.frame(species = filtered_data_2[,"Species"],lda = plda$x)
+ggplot(dataset) + geom_point(aes(lda.LD1, lda.LD2, colour = species, shape = species), size = 2.5) + labs(x = paste("LD1 (", percent(prop.lda[1]), ")", sep=""),y = paste("LD2 (", percent(prop.lda[2]), ")", sep=""))
+
+
+# Lets focus on accuracy. Table function
+lda.train <- predict(fish_raw.lda_new)
+train_raw.df_new$lda <- lda.train$class
+table(train_raw.df_new$lda,train_raw.df_new$Species)
+# running accuracy on the training set shows how good the model is. It is not an indication of "true" accuracy. We will use the test set to approximate accuracy
+lda.test <- predict(fish_raw.lda_new,test_raw.df_new)
+test_raw.df_new$lda <- lda.test$class
+table(test_raw.df_new$lda,test_raw.df_new$Species)
+
+
+```
+
+Prior Probabilities:
+
+Prior probabilities represent the relative frequencies of each fish species in the training data.
+
+Species 2 has the highest prior probability (31.36%), while species 6 has the lowest (3.39%).
+
+Group Means:
+
+Species 3 has the highest average weight (895.18) and length (45.73), while species 5 has the lowest weight (11.52) and length (11.41).
+
+Proportion of Trace:
+
+Proportion of trace indicates the amount of variance explained by each discriminant function.
+
+LD1 explains the majority of variance (74.46%), followed by LD2 (19.49%), LD3 (4.58%), and so on.
+
+This suggests that LD1 is the most informative discriminant function for separating fish species based on morphological measurements.
+
+###SUBSETTING THE DATA###
+
+The prior probabilities of group 0 and group 1 are approximately 0.67 and 0.33, respectively.
+
+This indicates that group 0 is more prevalent in the data compared to group 1.
+
+LD1 scores represent the values obtained by projecting the new data onto the discriminant function derived from the training data.
+
+Higher LD1 scores typically indicate a stronger association with the predicted class.
+
+Observations with higher LD1 scores are more confidently assigned to class 1, while those with lower LD1 scores are assigned to class 0.
+
+Accuracy:
+
+Training Set Performance:
+
+All 26 observations belonging to class 0 are correctly classified as class 0.
+Similarly, all 13 observations belonging to class 1 are correctly classified as class 1. This indicates perfect accuracy on the training set.
+
+Test Set Performance:
+
+All 9 observations in the test set that belong to class 0 are correctly classified as class 0. Additionally, all 4 observations in the test set that belong to class 1 are correctly classified as class 1. This also indicates perfect accuracy on the test set.
+
+These results suggest that the model trained using the new data (fish_raw.lda_new) performs exceptionally well on both the training and test datasets, with 100% accuracy in classification for both sets. However, it's important to note that the test set here is relatively small, so generalization to larger datasets should be considered carefully.
+
