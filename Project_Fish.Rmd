@@ -1,0 +1,647 @@
+---
+title: "Project_Fish"
+author: "Akshita"
+date: "2024-04-28"
+output: html_document
+---
+
+```{r}
+library(readr)
+fish <- read.csv("C:/Users/HP/Desktop/USA/Spring'24/Multivariate/Datasets/Fish_dataset.csv")
+str(fish)
+
+# Check for null values
+null_values <- colSums(is.na(fish))
+
+# Print the count of null values for each column
+print(null_values)
+
+# Print columns with null values, if any
+cols_with_null <- names(null_values[null_values > 0])
+if (length(cols_with_null) > 0) {
+  cat("Columns with null values:", paste(cols_with_null, collapse = ", "))
+} else {
+  cat("No null values found in the dataset.")
+}
+
+fish_cleaned <- fish[,-1]
+str(fish_cleaned)
+
+```
+
+This dataset is a record of 7 common different fish species in fish market sales. With this dataset, a predictive model can be performed using machine friendly data and estimate the weight of fish can be predicted.
+
+```{r}
+# Scale the variables
+scaled_fish_data <- scale(fish_cleaned)
+
+#comparing original and scaled values
+# Plot histograms for original data
+par(mfrow=c(2, ncol(fish_cleaned)))  # Set up plotting layout
+
+for (i in 1:(ncol(fish_cleaned))) {  # Exclude the last column (Feelings_Category)
+  hist(fish_cleaned[, i], main = paste("Original", names(fish_cleaned)[i]), xlab = names(fish_cleaned)[i], col = "lightblue")
+}
+
+# Plot histograms for scaled data
+for (i in 1:(ncol(scaled_fish_data))) {
+  hist(scaled_fish_data[, i], main = paste("Scaled", names(scaled_fish_data)[i]), xlab = names(scaled_fish_data)[i], col = "lightgreen")
+}
+
+```
+
+EDA
+
+```{r}
+# Install and load the psych package
+library(psych)
+
+# Perform PCA
+pca_result <- prcomp(scaled_fish_data)
+print(pca_result)
+summary(pca_result)
+
+# Scree plot
+plot(pca_result, type = "l", main = "Scree Plot")
+
+# Biplot
+biplot(pca_result, cex = 0.8)
+
+# Correlation
+pairs.panels(fish_cleaned,
+              gap = 0,
+              bg = c("red", "blue")[fish$Species],
+              pch=21)
+ 
+pairs.panels(pca_result$x,
+              gap=0,
+              bg = c("red", "blue")[fish$Species],
+              pch=21)
+```
+1. Variance:
+
+The first principal component (PC1) explains approximately 87.81% of the total variance in the data, indicating that a large amount of information can be summarized by this component alone.
+
+PC2 explains about 8.53% of the variance, and together with PC1, they explain around 96.34% of the total variance. This suggests that these two components capture the majority of the variability in the dataset.
+
+2. Component Loadings:
+
+The rotation matrix (the loadings) shows the relationships between the original variables (fish characteristics) and the principal components. Higher absolute values in the loading matrix indicate stronger correlations between variables and components.
+
+For example, Weight, Length1, Length2, Length3, and Width have relatively high loadings on PC1, while Height has a moderate loading. This suggests that PC1 is primarily influenced by these variables, perhaps representing overall size or growth of the fish.
+
+PC2, on the other hand, is negatively correlated with Length1, Length2, and Width, but positively correlated with Height. This could represent a different aspect of fish morphology, perhaps related to body shape.
+
+3. Interpretation:
+
+The first principal component seems to represent overall size or growth of the fish, as it is strongly correlated with variables like Weight and various length measurements.
+
+The second principal component captures variation related to body proportions, as it is negatively correlated with certain length and width measurements but positively correlated with Height.
+
+
+```{r}
+
+# Perform Factor Analysis
+fa_result_fish <- fa(scaled_fish_data, nfactors = 3, rotate = "varimax")
+print(fa_result_fish)
+
+# Summary of Factor Analysis
+summary(fa_result_fish)
+
+# Biplot of factor loadings
+biplot(fa_result_fish)
+
+# Factor loadings plot
+factor_loading_plot <- fa.diagram(fa_result_fish, main = "Factor Loadings Plot")
+
+#1. Kaiser's Criterion:
+# Extract eigenvalues from FA results
+eigenvalues <- fa_result_fish$values
+print(eigenvalues)
+
+# Retain factors with eigenvalues greater than 1
+num_factors_kaiser <- sum(eigenvalues > 1)
+print(num_factors_kaiser)
+
+# Factor loadings
+fa_loadings <- fa_result_fish$loadings
+# Interpret factor loadings
+print(fa_loadings)
+
+# Access communalities
+communalities <- fa_result_fish$communality
+# Interpret communalities
+print(communalities)
+
+```
+
+Factor Loadings:
+
+The factor loadings represent the relationships between the original variables (fish characteristics) and the extracted factors. Higher absolute values in the loading matrix indicate stronger correlations between variables and factors.
+
+In this case, it seems that the first factor (MR1) is primarily influenced by variables like Weight, Length1, Length2, and Length3, as they have relatively high loadings on MR1.
+
+The second factor (MR2) is strongly correlated with Height and moderately correlated with Width, while the third factor (MR3) has relatively lower loadings across all variables.
+
+Eigenvalues:
+
+The eigenvalues represent the amount of variance explained by each factor. In this case, only the first factor has an eigenvalue greater than 1, suggesting that it explains a significant amount of variance in the data.
+
+Kaiser's Criterion:
+
+Kaiser's Criterion suggests retaining factors with eigenvalues greater than 1. In this case, only one factor meets this criterion, indicating that a one-factor solution might be appropriate.
+
+Communalities:
+
+Communalities represent the proportion of variance in each variable that is accounted for by the extracted factors. Higher communalities indicate that the variable is well-represented by the factors.
+
+All variables in this dataset have relatively high communalities, indicating that they are well-represented by the extracted factors.
+
+Interpretation:
+
+The Factor Analysis suggests that the fish characteristics are primarily influenced by one dominant factor (MR1), which represents overall size or growth of the fish.
+The other factors (MR2 and MR3) have relatively lower loadings and explain less variance in the data, suggesting that they may not be as meaningful in explaining the variation in fish characteristics.
+
+```{r}
+library(cluster)
+
+#The dataset is of 160 observations that's why we'll create a sample data of 30 rows.
+# Set the size of the subset you want
+subset_size <- 20  # Adjust this to your desired subset size
+# Randomly select subset_size number of rows from your dataset
+subset_indices <- sample(nrow(scaled_fish_data), subset_size)
+# Create the subset of your dataset
+subset_data <- scaled_fish_data[subset_indices, ]
+
+# Perform hierarchical clustering
+dist_matrix <- dist(subset_data)
+colnames(dist_matrix) <- rownames(dist_matrix)
+print(dist_matrix)
+
+# Clustering
+hclust_result <- hclust(dist_matrix, method = "ward.D2")
+plot(hclust_result, hang=-1,xlab="Object",ylab="Distance",
+     main="Dendrogram. ward D2 linkage")
+
+# Invoking hclust command (cluster analysis by single linkage method)      
+clus_fish.1 <- hclust(dist_matrix, method = "single")
+plot(clus_fish.1, hang=-1,xlab="Object",ylab="Distance",
+     main="Dendrogram. Nearest neighbor linkage")
+
+#Default - Complete
+clus_fish.2 <- hclust(dist_matrix)
+plot(clus_fish.2,hang=-1,xlab="Object",ylab="Distance",
+     main="Dendrogram. Farthest neighbor linkage")
+
+
+#Average
+clus_fish.3 <- hclust(dist_matrix,method="average")
+plot(clus_fish.3,hang=-1,xlab="Object",ylab="Distance",
+     main="Dendrogram. Group average linkage")
+
+# We will use agnes function as it allows us to select option for data standardization, the distance measure and clustering algorithm in one single function
+(agn.fish <- agnes(subset_data, metric="euclidean", stand=TRUE, method = "single"))
+#  Description of cluster merging
+agn.fish$merge
+
+#Interactive Plots
+plot(agn.fish, which.plots=1)
+plot(agn.fish, which.plots=2)
+
+# Cut the dendrogram to obtain clusters
+num_clusters <- 3  # Choose the number of clusters
+clusters <- cutree(hclust_result, k = num_clusters)
+
+# Visualize the dendrogram
+plot(hclust_result, main = "Dendrogram of Hierarchical Clustering")
+rect.hclust(hclust_result, k = num_clusters, border = 2:5)
+
+# K-means, k=2, 3, 4, 5, 6
+# Centers (k's) are numbers thus, 10 random sets are chosen
+
+# Computing the percentage of variation accounted for. Two clusters
+(kmeans2.fish <- kmeans(subset_data,2,nstart = 10))
+# Computing the percentage of variation accounted for. Two clusters
+perc.var.2 <- round(100*(1 - kmeans2.fish$betweenss/kmeans2.fish$totss),1)
+names(perc.var.2) <- "Perc. 2 clus"
+perc.var.2
+
+# Computing the percentage of variation accounted for. Three clusters
+(kmeans3.fish <- kmeans(subset_data,3,nstart = 10))
+# Computing the percentage of variation accounted for. Two clusters
+perc.var.3 <- round(100*(1 - kmeans3.fish$betweenss/kmeans3.fish$totss),1)
+names(perc.var.3) <- "Perc. 3 clus"
+perc.var.3
+
+# Computing the percentage of variation accounted for. Four clusters
+(kmeans4.fish <- kmeans(subset_data,4,nstart = 10))
+perc.var.4 <- round(100*(1 - kmeans4.fish$betweenss/kmeans4.fish$totss),1)
+names(perc.var.4) <- "Perc. 4 clus"
+perc.var.4
+
+# Computing the percentage of variation accounted for. Five clusters
+(kmeans5.fish <- kmeans(subset_data,5,nstart = 10))
+perc.var.5 <- round(100*(1 - kmeans5.fish$betweenss/kmeans5.fish$totss),1)
+names(perc.var.5) <- "Perc. 5 clus"
+perc.var.5
+
+# Computing the percentage of variation accounted for. Six clusters
+(kmeans6.fish <- kmeans(subset_data,6,nstart = 10))
+perc.var.6 <- round(100*(1 - kmeans6.fish$betweenss/kmeans6.fish$totss),1)
+names(perc.var.6) <- "Perc. 6 clus"
+perc.var.6
+
+Variance_List <- c(perc.var.2,perc.var.3,perc.var.4,perc.var.5,perc.var.6)
+Variance_List
+plot(Variance_List)
+
+
+# Plot clusters
+plot(subset_data, col = kmeans3.fish$cluster, 
+      main = "K-means Clustering with 3 Clusters", 
+      xlab = "X-axis Label", ylab = "Y-axis Label")
+ 
+# Add cluster centers to the plot
+points(kmeans3.fish$centers, col = 1:3, pch = 8, cex = 2)
+ 
+# Add legend
+legend("topright", legend = unique(kmeans3.fish$cluster), 
+        col = 1:3, pch = 8, title = "Cluster")
+```
+
+Agglomerative coefficient (AGNES) value of 0.744 indicates a moderate level of clustering structure, suggesting that the data has some natural grouping tendencies.
+
+For k=2 clusters, the within-cluster sum of squares is 23.230 and 9.949, respectively. The percentage of variation accounted for is 29.6%. This suggests that the two clusters capture approximately 29.6% of the total variance in the data.
+
+Similarly, for k=3 clusters, the within-cluster sum of squares is 9.949, 1.044, and 5.620, respectively. The percentage of variation accounted for is 14.8%. This suggests that the three clusters capture approximately 14.8% of the total variance in the data.
+
+In k-means clustering with k=2 clusters, cluster 1 has higher mean values for weight, length, height, and width compared to cluster 2, indicating potentially larger or healthier fish in cluster 1.
+
+These cluster assignments can be further investigated to understand the factors driving the differences between the clusters, such as environmental conditions, feeding regimes, or genetic factors.
+
+Models:
+
+Multiple Linear Regression:
+
+```{r}
+fish_data <- read.csv("C:/Users/HP/Desktop/USA/Spring'24/Multivariate/Datasets/Fish_dataset.csv")
+str(fish_data)
+# Fit linear regression model
+sm_model_fit <- lm(Weight ~ Length1 + Height + Width, data = fish_data)
+
+#show the results
+summary(sm_model_fit)
+#Summary has three sections. Section1: How well does the model fit the data (before Coefficients). Section2: Is the hypothesis supported? (until sifnif codes). Section3: How well does data fit the model (again).
+# Useful Helper Functions
+coefficients(sm_model_fit)
+
+# Diagnostic plots for the linear regression model
+plot(sm_model_fit)
+
+# Assess the acceptance of the model
+# Check R-squared and adjusted R-squared
+r_squared <- summary(sm_model_fit)$r.squared
+adj_r_squared <- summary(sm_model_fit)$adj.r.squared
+cat("R-squared:", r_squared, "\n")
+cat("Adjusted R-squared:", adj_r_squared, "\n")
+
+# Check the F-statistic and its p-value
+f_statistic <- summary(sm_model_fit)$fstatistic
+f_statistic_value <- f_statistic[1]
+f_statistic_p_value <- pf(f_statistic_value, f_statistic[2], f_statistic[3], lower.tail = FALSE)
+cat("F-statistic:", f_statistic_value, "\n")
+cat("p-value:", f_statistic_p_value, "\n")
+# Reset plotting parameters
+par(mfrow = c(1, 1))
+
+# Select only numeric variables from fish_data
+numeric_fish_data <- fish_data[, sapply(fish_data, is.numeric)]
+# Plot pairs
+pairs(numeric_fish_data, main = "Fish Data")
+confint(sm_model_fit,level=0.95)
+fitted(sm_model_fit)
+residuals(sm_model_fit)
+
+# Plot residuals vs. fitted values
+plot(sm_model_fit, which = 1)
+
+# Plot normal Q-Q plot of residuals
+plot(sm_model_fit, which = 2)
+
+# Make predictions
+predictions <- predict(sm_model_fit, newdata = fish_data)
+
+# Print predictions
+print(predictions)
+
+# Calculate Mean Squared Error (MSE)
+mse <- mean(sm_model_fit$residuals^2)
+
+# Calculate Root Mean Squared Error (RMSE)
+rmse <- sqrt(mse)
+
+# Calculate Mean Absolute Error (MAE)
+mae <- mean(abs(sm_model_fit$residuals))
+
+# Print the accuracy metrics
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+
+```
+
+1. Model Fit:
+
+The linear regression model appears to fit the data quite well, as indicated by the high adjusted R-squared value of 0.8805. This suggests that approximately 88.05% of the variability in the response variable (Weight) can be explained by the predictor variables (Length1, Height, Width).
+
+2. Coefficient Estimates:
+
+The coefficients of the predictor variables (Length1, Height, Width) indicate their respective impacts on the response variable (Weight).
+For example, the coefficient for Length1 is 22.605, suggesting that for every unit increase in Length1, the Weight of the fish is expected to increase by approximately 22.605 units, holding other variables constant.
+
+3. Significance:
+
+All predictor variables (Length1, Height, Width) are statistically significant at the 0.05 significance level, as indicated by their p-values being less than 0.05.
+This suggests that there is sufficient evidence to conclude that the coefficients of these predictor variables are not equal to zero, meaning they have a significant effect on the response variable (Weight).
+
+2. Logistic Regression
+```{r}
+library(ggplot2)
+library(cowplot)
+library(pROC)
+
+# Subset the fish data to create a binary classification task
+binary_fish_data <- subset(fish_data, Species == "Bream" | Species != "Bream")
+
+# Convert the target variable to a binary outcome (1 for Bream, 0 for non-Bream)
+binary_fish_data$IsBream <- ifelse(binary_fish_data$Species == "Bream", 1, 0)
+
+# Fit logistic regression model
+binary_fish_model <- glm(IsBream ~ ., data = binary_fish_data, family = "binomial")
+
+# Summary of the model
+summary(binary_fish_model)
+
+# Goodness of Fit
+# Compare null deviance and residual deviance
+null_deviance <- summary(binary_fish_model)$null.deviance
+residual_deviance <- summary(binary_fish_model)$deviance
+deviance_reduction <- null_deviance - residual_deviance
+print(paste("Null Deviance:", null_deviance))
+print(paste("Residual Deviance:", residual_deviance))
+print(paste("Deviance Reduction:", deviance_reduction))
+
+# AIC
+AIC_value <- AIC(binary_fish_model)
+print(AIC_value)
+
+# Assumptions Checking (Diagnostic Plots)
+par(mfrow = c(2, 2))  # Set up a 2x2 plot layout
+plot(binary_fish_model)
+
+# Predict probabilities for each observation
+predicted_probabilities <- predict(binary_fish_model, type = "response", newdata = binary_fish_data)
+
+# View the predicted probabilities
+head(predicted_probabilities)
+
+# Set a threshold probability (e.g., 0.5)
+threshold <- 0.5
+
+# Convert predicted probabilities to binary predictions based on the threshold
+predicted_classes <- ifelse(predicted_probabilities >= threshold, 1, 0)
+
+# Calculate accuracy
+accuracy <- mean(predicted_classes == binary_fish_data$IsBream)
+print(paste("Accuracy:", accuracy))
+
+# Create a data frame with actual and predicted values
+prediction_df <- data.frame(
+  Actual = binary_fish_data$IsBream,
+  Predicted_Probability = predicted_probabilities)
+
+# Sort the data frame by predicted probabilities for better visualization
+prediction_df <- prediction_df[order(prediction_df$Predicted_Probability), ]
+
+# Create a sequence of observation numbers
+observation_numbers <- seq_along(predicted_probabilities)
+
+# Plot predicted probabilities
+plot(observation_numbers, predicted_probabilities, type = "l", col = "blue",
+     xlab = "Observation", ylab = "Probability", 
+     main = "Predicted Probabilities vs. Actual Outcomes")
+
+# Add actual outcomes as points (red for Bream, green for Non-Bream)
+points(observation_numbers[binary_fish_data$IsBream == 1], 
+       rep(1, sum(binary_fish_data$IsBream == 1)), col = "red", pch = 19)
+points(observation_numbers[binary_fish_data$IsBream == 0], 
+       rep(0, sum(binary_fish_data$IsBream == 0)), col = "green", pch = 19)
+
+# Add legend
+legend("topright", legend = c("Predicted", "Actual (Bream)", "Actual (Non-Bream)"),
+       col = c("blue", "red", "green"), lty = 1, pch = c(NA, 19, 19), cex = 0.8)
+
+# Predicted probabilities from the logistic regression model
+predicted_probabilities <- predict(binary_fish_model, type = "response")
+
+# Convert predicted probabilities to binary predictions (1 for Bream, 0 for Non-Bream)
+predicted_classes <- ifelse(predicted_probabilities >= 0.5, 1, 0)
+
+# Calculate accuracy
+accuracy <- mean(predicted_classes == binary_fish_data$IsBream)
+cat("Model Accuracy:", accuracy, "\n")
+
+# Predict classes using the logistic regression model
+predicted_classes <- ifelse(predict(binary_fish_model, newdata = binary_fish_data, type = "response") > 0.5, "Bream", "Not Bream")
+
+# Create a confusion matrix
+confusion_matrix <- table(predicted_classes, as.factor(binary_fish_data$IsBream))
+
+# Print confusion matrix
+print(confusion_matrix)
+
+# Calculate ROC curve
+roc_curve <- roc(binary_fish_data$IsBream, predicted_probabilities)
+
+# Plot ROC curve
+plot(roc_curve, main = "ROC Curve for Logistic Regression Model",
+     col = "blue", lwd = 2)
+
+# Add diagonal line for reference
+abline(a = 0, b = 1, col = "red", lty = 2)
+
+# Add legend
+legend("bottomright", legend = c("ROC Curve", "Random Guessing"),
+       col = c("blue", "red"), lty = 1:2, cex = 0.8)
+```
+
+All coefficient estimates for predictor variables (except the intercept) are extremely large, with estimates in the order of 10^5. This indicates potential issues with model convergence or numerical instability.
+
+The standard errors for the coefficients are also very large, indicating high uncertainty in the parameter estimates.
+
+The Z-values for all coefficients are 0, suggesting that none of the coefficients are significantly different from zero, which is unusual.
+
+The null deviance is 167.108, indicating the deviance for the null model (model with no predictors).
+
+The residual deviance is extremely close to zero (9.1665e-10), suggesting that the model perfectly fits the data. However, such a small residual deviance is highly suspicious and may indicate a problem with the model or data.
+
+The AIC value is 26, which is low, indicating a good model fit. However, given the convergence warning, the reliability of this AIC value is questionable.
+
+3. LDA
+
+```{r}
+library(MASS)
+library(ggplot2)
+library(memisc)
+library(ROCR)
+
+fish_independent <- as.matrix(fish_data[,c(2:7)])
+fish_raw <- cbind(fish_independent, as.numeric(as.factor(fish_data$Species))-1)
+colnames(fish_raw)[7] <- "Species"
+
+smp_size_raw <- floor(0.75 * nrow(fish_raw))
+train_ind_raw <- sample(nrow(fish_raw), size = smp_size_raw)
+train_raw.df <- as.data.frame(fish_raw[train_ind_raw, ])
+test_raw.df <- as.data.frame(fish_raw[-train_ind_raw, ])
+
+fish_raw.lda <- lda(formula = train_raw.df$Species ~ ., data = train_raw.df)
+fish_raw.lda
+
+summary(fish_raw.lda)
+print(fish_raw.lda)
+plot(fish_raw.lda)
+
+fish_raw.lda.predict <- predict(fish_raw.lda, newdata = test_raw.df)
+fish_raw.lda.predict$class
+fish_raw.lda.predict$x
+
+
+#Filter the dataset for the two classes you want to predict
+class_1 <- "Bream"  # class 1
+class_2 <- "Pike"   # class 2
+
+filtered_data <- fish_data[fish_data$Species %in% c(class_1, class_2), ]
+str(filtered_data)
+
+
+fish_independent_new <- as.matrix(filtered_data[,c(2:7)])
+fish_raw_new <- cbind(fish_independent_new, as.numeric(as.factor(filtered_data$Species))-1)
+colnames(fish_raw_new)[7] <- "Species"
+
+smp_size_raw_new <- floor(0.75 * nrow(fish_raw_new))
+train_ind_raw_new <- sample(nrow(fish_raw_new), size = smp_size_raw_new)
+train_raw.df_new <- as.data.frame(fish_raw_new[train_ind_raw_new, ])
+test_raw.df_new <- as.data.frame(fish_raw_new[-train_ind_raw_new, ])
+
+fish_raw.lda_new <- lda(formula = train_raw.df_new$Species ~ ., data = train_raw.df_new)
+fish_raw.lda_new
+
+summary(fish_raw.lda_new)
+print(fish_raw.lda_new)
+plot(fish_raw.lda_new)
+
+fish_raw.lda.predict_new <- predict(fish_raw.lda_new, newdata = test_raw.df_new)
+fish_raw.lda.predict_new$class
+fish_raw.lda.predict_new$x
+
+
+
+# Get the posteriors as a dataframe.
+fish_raw.lda.predict_new.posteriors <- as.data.frame(fish_raw.lda.predict_new$posterior)
+
+pred <- prediction(fish_raw.lda.predict_new.posteriors[,2], test_raw.df_new$Species)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.train <- performance(pred, measure = "auc")
+auc.train <- auc.train@y.values
+plot(roc.perf)
+abline(a=0, b= 1)
+text(x = .25, y = .65 ,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+
+# do a quick plot to understand how good the model is
+plot(fish_raw.lda_new, col = as.integer(train_raw.df_new$Species))
+# Sometime bell curves are better
+#plot(fish_raw.lda_new, dimen = 1, type = "b")
+# THis plot shows the essense of LDA. It puts everything on a line and finds cutoffs. 
+# Partition plots
+#partimat(Species ~ Weigth + Sepal.Width + Length1 + Length2 + Length3 + Height + Width, data=train_raw.df_new, method="lda")
+
+#Trying with 3 species now
+class_3 <- "Roach"
+filtered_data_2 <- fish_data[fish_data$Species %in% c(class_1, class_2, class_3), ]
+
+r2 <- lda(formula = Species ~ ., data = filtered_data_2, CV = TRUE)
+r2
+head(r2$class)
+train <- sample(1:150, 75)
+r3 <- lda(Species ~ ., # training model
+           filtered_data_2,
+           prior = c(1,1,1)/3,
+           subset = train)
+plda = predict(object = r3, # predictions
+                newdata = filtered_data_2[-train, ])
+head(plda$class)
+head(plda$posterior, 6) # posterior prob.
+head(plda$x, 3)
+plot(r3)
+head(r2$posterior, 3)
+train <- sample(1:150, 75)
+r3 <- lda(Species ~ ., # training model
+           filtered_data_2,
+           prior = c(1,1,1)/3,
+           subset = train)
+plda = predict(object = r3, # predictions
+                newdata = filtered_data_2[-train, ])
+head(r2$posterior, 3)
+head(plda$posterior, 6) # posterior prob.
+head(plda$x, 3)
+plot(r3)
+r <- lda(Species ~ .,
+          filtered_data_2,
+          prior = c(1,1,1)/3)
+prop.lda = r$svd^2/sum(r$svd^2)
+plda <- predict(object = r,
+               newdata = filtered_data_2)
+dataset = data.frame(species = filtered_data_2[,"Species"],lda = plda$x)
+ggplot(dataset) + geom_point(aes(lda.LD1, lda.LD2, colour = species, shape = species), size = 2.5) + labs(x = paste("LD1 (", percent(prop.lda[1]), ")", sep=""),y = paste("LD2 (", percent(prop.lda[2]), ")", sep=""))
+
+
+# Lets focus on accuracy. Table function
+lda.train <- predict(fish_raw.lda_new)
+train_raw.df_new$lda <- lda.train$class
+table(train_raw.df_new$lda,train_raw.df_new$Species)
+# running accuracy on the training set shows how good the model is. It is not an indication of "true" accuracy. We will use the test set to approximate accuracy
+lda.test <- predict(fish_raw.lda_new,test_raw.df_new)
+test_raw.df_new$lda <- lda.test$class
+table(test_raw.df_new$lda,test_raw.df_new$Species)
+
+```
+
+The mean values of the predictor variables for each group provide insight into the characteristics of Bream and Pike species. For example, Pike tend to have higher values for Length1, Length2, Length3, and lower values for Height and Width compared to Bream.
+
+The model has reasonably good discriminative ability between the Bream and Pike species based on the given predictor variables (Weight, Length1, Length2, Length3, Height, and Width).
+
+The AUC value indicates that the model performs well in distinguishing between Bream and Pike.
+
+The imbalanced nature of the dataset could potentially affect the model's performance, particularly in terms of sensitivity to the minority class (Pike). Techniques such as oversampling, undersampling, or using class weights may be necessary to address this imbalance.
+
+The visualization of linear discriminants shows clear separation between the two groups, suggesting that the model can effectively classify new observations.
+
+Overall, the LDA model seems to be performing well for the given classification task.
+
+#Learning and Takeaways:
+
+Variable Importance: The PCA analysis revealed that certain variables, such as "Weight" and "Length1", contribute more significantly to the variation observed in the dataset compared to others. Understanding variable importance can help prioritize features for further analysis or model development.
+
+Dimensionality Reduction: PCA effectively reduced the dimensionality of the dataset while retaining most of its variance. This dimensionality reduction simplifies subsequent analyses and models, making them computationally less expensive and potentially more interpretable.
+
+Visualization of Data: Visualizing the data projected onto the principal components enabled the identification of patterns and clusters within the dataset. While some separation between species was observed, there were also areas of overlap, indicating potential challenges in classification.
+
+Classification Performance: The subsequent LDA model provided insights into the discriminative ability of the original predictor variables in distinguishing between different species of fish. Evaluating classification accuracy, confusion matrices, and ROC curves helps assess the model's performance and generalization ability.
+
+Feature Interpretation: The coefficients of the linear discriminants in the LDA model shed light on how each original predictor variable contributes to the separation between fish species. Understanding these relationships can provide biological insights into the characteristics that differentiate species.
+
+Model Validation: It's crucial to validate the performance of models like LDA using appropriate metrics and techniques. This ensures that the model's predictive capabilities generalize well to unseen data and are not overly influenced by noise or artifacts in the training dataset.
+
+Interpretability vs. Performance Trade-off: Dimensionality reduction techniques like PCA offer interpretability by reducing the feature space to a smaller set of uncorrelated variables. However, there's often a trade-off between interpretability and model performance. Balancing these factors is essential when choosing an appropriate analysis approach.
+
+Overall, the analysis provided a comprehensive understanding of the fish dataset, including its underlying structure, patterns, and the discriminative power of its features. These insights can inform further research, model development, or decision-making processes related to fish species classification or other related tasks.
